@@ -1,0 +1,10 @@
+state,edge,action,finalState
+start,-,-,outOfMarket
+outOfMarket,enterMarket,enterMarket,waitingForMeanReversion
+outOfMarket,default,continue,outOfMarket
+waitingForMeanReversion,stockHasMissingData,exitMarket,outOfMarket
+waitingForMeanReversion,stopLoss,exitMarket,outOfMarket
+waitingForMeanReversion,meanRevertedandFiredOtherSide,exitAndEnterMarket,waitingForMeanReversion
+waitingForMeanReversion,meanReverted,exitMarket,outOfMarket
+waitingForMeanReversion,tradeNotProfitable,exitMarket,outOfMarket
+waitingForMeanReversion,default,continue,waitingForMeanReversion
