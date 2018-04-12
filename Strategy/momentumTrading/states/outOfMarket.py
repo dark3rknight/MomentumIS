@@ -1,30 +1,21 @@
 import sys
-sys.path.append('/home/ishan/Desktop/Ishan/Stock Data/Code Files/Strategy')
-from pairsTrading.PairsState import PairsState
+currentDir = os.getcwd()
+sys.path.append(currentDir + '/Strategy')
+from momentumTrading.MomentumState import MomentumState
 
 class outOfMarket(PairsState):
-	def __init__(self, name,edges,actions,finalStates,stateConstants):
-		PairsState.__init__(self,name,edges,actions,finalStates,stateConstants['colName'], stateConstants['offset'], stateConstants['momentumWindow'], stateConstants['pastWindow'])
+	def __init__(self,name,edges,actions,finalStates, stateConstants, indicators):
+		MomentumState.__init__(self,name,edges,actions,finalStates)
 		self.stateConstants = stateConstants
 
-	def enterMarket(self,stock1dfs, stock2dfs, indicators,toPass = None):			
-		datapoint, zscore, correlation, momentum, priceMomentum, zScores_30m, stock1_std, stock2_std, flag = indicators
-		if(zscore > 0):
-			if((zscore > self.stateConstants['zscoreBuy'])and((zscore < self.stateConstants['zscoreStopLoss']) or (not self.stateConstants['stopLossFlag'])) and ((correlation > self.stateConstants['correlationSelectionThreshold']) or (not self.stateConstants['correlationCheckFlag'])) and flag):
-				PairsState.cPCount = 0
-				PairsState.skipCounter = 0
-				return True,[1, datapoint, zscore, correlation, momentum, priceMomentum, [stock1dfs[0].iloc[-1][self.stateConstants['colName']], stock2dfs[0].iloc[-1][self.stateConstants['colName']]], [1/stock1_std, 1/stock2_std]]
-			else:
-				return False,[0, datapoint, zscore, correlation, momentum, priceMomentum,[stock1dfs[0].iloc[-1][self.stateConstants['colName']], stock2dfs[0].iloc[-1][self.stateConstants['colName']]], [1/stock1_std, 1/stock2_std]]
+	def enterMarket(self,timestamp, indicators, prices, toPass = None):
+		if((indicators['PSAR_Indicator'] == 1) and (indicators['SMBA_Indicator'] == 1) and (indicators['OLS_Indicator'] == 1)):
+			return True, {'Price': prices[prices.index == timestamp], 'Direction': 1}
+		elif((indicators['PSAR_Indicator'] == -1) and (indicators['SMBA_Indicator'] == -1) and (indicators['OLS_Indicator'] == -1))
+			return True, {'Price': prices[prices.index == timestamp], 'Direction': 1}
 		else:
-			if((zscore < -self.stateConstants['zscoreBuy'])and((zscore > -self.stateConstants['zscoreStopLoss']) or (not self.stateConstants['stopLossFlag'])) and ((correlation > self.stateConstants['correlationSelectionThreshold']) or (not self.stateConstants['correlationCheckFlag'])) and flag):
-				PairsState.cPCount = 0
-				PairsState.skipCounter = 0
-				return True,[-1, datapoint, zscore, correlation, momentum, priceMomentum,[stock1dfs[0].iloc[-1][self.stateConstants['colName']], stock2dfs[0].iloc[-1][self.stateConstants['colName']]], [1/stock1_std, 1/stock2_std]]
-			else:
-				return False,[0, datapoint, zscore, correlation, momentum, priceMomentum,[stock1dfs[0].iloc[-1][self.stateConstants['colName']], stock2dfs[0].iloc[-1][self.stateConstants['colName']]], [1/stock1_std, 1/stock2_std]]
+			return False, {}
 
-	def preRequisites(self,stock1dfs, stock2dfs, toPass):
-		datapoint, zscore, correlation, stock1_std, stock2_std, zScores_30m, flag  = self.calculateIndicators(stock1dfs, stock2dfs)
-		momentum, priceMomentum = self.calculateMomentumIndicators(stock1dfs, stock2dfs,zscore, toPass[1])
-		return datapoint,zscore,correlation, momentum, priceMomentum, zScores_30m, stock1_std, stock2_std, flag
+	def preRequisites(self,prices, timestamp, toPass):
+		row = self.indicators[self.indicators.index == timestamp]
+		return row

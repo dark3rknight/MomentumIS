@@ -95,6 +95,7 @@ class StrategyPortfolio:
 					self.strategyParameters[key] = value
 					extra = extra + str(value) + '_'
 				extra = extra[:-1]
+				extra = ''
 			else:
 				extra = ''
 

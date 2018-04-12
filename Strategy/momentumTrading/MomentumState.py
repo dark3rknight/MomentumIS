@@ -1,6 +1,7 @@
 import sys
-sys.path.append('/home/ishan/Desktop/Ishan/Stock Data/Code Files/Strategy')
-sys.path.append('/home/ishan/Desktop/Ishan/Stock Data/Code Files')
+import os
+currentDir = os.getcwd()
+sys.path.append(currentDir + '/Strategy')
 from State import State
 import pandas as pd
 import scipy.stats as stats
@@ -8,22 +9,14 @@ import numpy as np
 from datetime import timedelta, datetime
 import pickle
 
-class PairsState(State):
-	cPCount = 0
-	skipCounter = 0
-	def __init__(self,name,edges,actions,finalStates, colName, offset, momentumWindow, pastWindow):
+class MomentumState(State):
+
+	def __init__(self,name,edges,actions,finalStates):
 		State.__init__(self,name,edges,actions, finalStates, colName)
 		self.colName = colName
 		self.offset = offset
 		self.pastWindow = pastWindow
 		self.momentumWindow = momentumWindow
-
-	def calculateZScore(self,datapoint,mean,std):
-		return (datapoint - mean)/std
-
-	def createDistribution(self,stock1,stock2):
-		data = [stock1[i]/stock2[i] for i in range(len(stock1))]
-		return np.mean(data), np.std(data)
 
 	def calculateIndicators(self, stock1dfs, stock2dfs):
 		stock1df = stock1dfs[0]
@@ -161,25 +154,20 @@ class PairsState(State):
 			return rows
 		return df
 
-	def getNextResult(self,stock1dfs, stock2dfs, toPass = None):
+	def getNextResult(self,prices, timestamp,toPass = None):
 		selectedEdge = 'default'
 		row = None
 		if(stock1dfs[0].shape[0] < self.offset):
 			return selectedEdge, self.actions[selectedEdge], self.finalStates[selectedEdge],None, row
 
-		indicators = self.preRequisites(stock1dfs, stock2dfs,toPass)
+		indicators = self.preRequisites(prices,timestamp,toPass)
 		result = None
 		for edge in self.edges:
 			if(edge == 'default'):
 				continue
 			else:
-				flag, data = eval('self.' + edge + '(stock1dfs, stock2dfs,indicators, toPass)')
+				flag, data = eval('self.' + edge + '(prices, timestamp,toPass)')
 				if(flag):
 					selectedEdge = edge
-					if(self.actions[edge] == 'exitMarket'):
-						if(self.stateConstants['collectRegressionData']):
-							row = self.collectDataForPrediction(stock1dfs, stock2dfs, toPass)
-						else:
-							row = None
 					break
 		return selectedEdge, self.actions[selectedEdge], self.finalStates[selectedEdge],data, row

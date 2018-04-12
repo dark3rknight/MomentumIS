@@ -16,7 +16,6 @@ from utilities.FinancialFunctions import FinancialFunctions
 class Strategy:	
 	def __init__(self, transactionSummary, positionSummary, automataFile, parameters = None):
 		exec(UtilityFunctions.initializeFunctionArguments(Strategy.__init__))
-		self.colName = parameters['colName']
 		self.returnCurve = []
 		self.continuousReturnCurve = []
 		self.continuousReturnCurveWithTimeIndex = {}
@@ -67,15 +66,6 @@ class Strategy:
 	def writePositionTransaction(self,row,worksheet):
 		worksheet.write_row('A' + str(self.psRowNumber), row)
 		self.psRowNumber += 1
-
-	def testStrategy(self,stockdf, stockName = None, startDate = None, endDate = None):
-		self.stockName = stockName
-		self.stockdf = stockdf
-		self.stockdf_datetime = stockdf.reset_index()
-		stateInitializers = {}
-		self.automata.initializeStates(stockdf, self.colName, stateInitializers)
-		for i,selectedEdge,action,currentState,inf in self.automata.executeSequence(stockdf):
-			exec('self.' + action + '(i,inf,selectedEdge)')
 
 	def closingFormalities(self):
 		#Calculate drawdown and sharpe ratio

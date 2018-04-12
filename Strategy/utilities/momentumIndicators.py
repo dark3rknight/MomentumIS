@@ -5,12 +5,6 @@ import pandas as pd
 import numpy as np
 import math
 from datetime import datetime,timedelta
-
-import matplotlib.pyplot as plt
-import plotly.plotly as py
-import plotly.graph_objs as go
-import plotly.offline
-
 from scipy import stats
 from dataPlot import *
 import csv
@@ -35,7 +29,7 @@ def calc_ema(data, window):
 def get_all_EMAs(data, window):
     EMA = [None] * ((window))
     for i in range(window, len(data)):
-        EMA.append(calc_ema(data[:i], window))
+        EMA.append(calc_ema(data[:i + 1], window))
     return EMA
 
 def smba_crossovers(pricelist, period1, period2):
@@ -47,8 +41,8 @@ def smba_crossovers(pricelist, period1, period2):
     start_time = ema_period[1]
     for i in range(len(ema_period)):
         ema.append(get_all_EMAs(pricelist,ema_period[i]))
-    ema1 = ema[0][1:] + [0]
-    ema2 = ema[-1][1:] + [0]
+    ema1 = ema[0]
+    ema2 = ema[1]
     trend = []
     for i in range(len(ema[0])):
         if ema1[i] == None or ema2[i] == None:
@@ -59,7 +53,6 @@ def smba_crossovers(pricelist, period1, period2):
             trend.append(-1)
         else:
             trend.append(0)
-    #multiAxis_LabeledPlot(pricelist,'price',ema[0],str(ema_period[0])+" ema",ema[1],str(ema_period[1])+" ema",trend,'indicator')
     return trend,ema1,ema2
 
 def Parabolic_SAR(close, high, low, acceleration_factor, max_acceleration):
@@ -103,7 +96,6 @@ def Parabolic_SAR(close, high, low, acceleration_factor, max_acceleration):
             new_acc = acceleration_factor
         accelation.append(new_acc)
         change.append(accelation[i]*(psar[i]-extreme_point[i]))
-    #multiplePlots(close,'price',psar,'PSAR')
     trend_1 = []
     for i in range(len(trend)):
         if trend[i] == 'rising':
@@ -113,27 +105,19 @@ def Parabolic_SAR(close, high, low, acceleration_factor, max_acceleration):
         else:
             trend_1.append(0)
 
-    return psar,trend_1
-
-
-def is_number(s):
-    try:
-        int(s)
-        return True
-    except:
-        return False
+    return trend_1, psar
 
 def OLS_Slope(pricelist, period):
     OLS_Slope = [0]*(period)
     for i in range(period,len(pricelist)):
         time_variable = list(range(period))
-        OLS_Slope.append(stats.linregress(time_variable,pricelist[i-period:i]).slope)
-    OLS_Slope = [1:]+[0]
-    #multi_subPlot(pricelist,'price',OLS_Slope,'OLS_Slope')
+        OLS_Slope.append(stats.linregress(time_variable,pricelist[i-period + 1:i + 1]).slope)
     retslope = []
     for i in range(len(OLS_Slope)):
         if OLS_Slope[i] > 0:
             retslope.append(1)
-        else:
+        elif(OLS_Slope[i] < 0):
             retslope.append(-1)
+        else:
+            retslope.append(0)
     return retslope,OLS_Slope

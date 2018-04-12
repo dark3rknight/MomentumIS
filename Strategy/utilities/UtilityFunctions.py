@@ -78,10 +78,22 @@ class UtilityFunctions:
 			returnDfs.append(returnDf)
 		return returnDfs
 
+	def datetimerange(start_date, end_date, start_time = '09:30', end_time = '15:30', timedel = 'minutes = 30', feededDatetime = True):
+		if(not feededDatetime):
+		    start_time = datetime.strptime(start_time, '%H:%M').time()
+		    end_time = datetime.strptime(end_time, '%H:%M').time()
+		    start_date = datetime.combine(start_date, start_time)
+		    end_date = datetime.combine(end_date, end_time)
+
+		counter = start_date
+		while(counter <= end_date):
+			yield counter
+			counter = eval('counter + timedelta(' + timedel + ')') 
+
 	def daterange(start_date, end_date):
 	    for n in range(int ((end_date - start_date).days)):
 	        yield start_date + timedelta(n)
-	
+
 	def timerange(startTime, endTime, delta):
 	    currentTime = startTime
 	    while(currentTime <= endTime):

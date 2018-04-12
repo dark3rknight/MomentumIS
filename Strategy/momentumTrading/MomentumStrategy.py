@@ -1,5 +1,10 @@
 import pandas as pd
 import numpy as np
+import os
+import sys
+currentDir = os.getcwd()
+sys.path.append(currentDir + '/Strategy')
+sys.path.append(currentDir + '/Strategy/momentumTrading')
 from Strategy import Strategy
 from datetime import datetime
 from momentumTrading.MomentumAutomata import MomentumAutomata
@@ -16,6 +21,7 @@ class MomentumStrategy(Strategy):
 		self.parameters = UtilityFunctions.fillDefaultData(parameters, defaultparameters)
 
 		#Constatnts
+		self.offset = np.max([self.parameters['smba_period1'], self.parameters['smba_period2'], self.parameters['ols_period']])
 		self.colName = self.parameters['colName']
 		self.automata = MomentumAutomata(self.parameters['automataFile'])
 		self.numberOfDailyCandles = self.parameters['numberOfDailyCandles']
@@ -58,15 +64,15 @@ class MomentumStrategy(Strategy):
 		else:
 			self.positionWorkbook, self.positionWorksheet, self.positionFormatRed = [None,None,None]
 
-	def testStrategy(self,stockdfs, stockName = None, startDate = None, endDate = None):
-		self.stockdfs = stockdfs
+	def testStrategy(self,stockdf, stockName = None, startDate = None, endDate = None):
+		stockdf = stockdf[0]
+		self.stockdf = stockdf
 		self.stockName = stockName
-		self.automata.initializeStates(self.parameters)
-		self.automata.initializeDataFrames(len(stockdfs), stockdfs[0].columns)
+		self.automata.initializeStates(self.parameters, stockdf)
 		bar = progressbar.ProgressBar()
-		startDate = np.min(stockdfs[0].DATE)
-		endDate = np.max(stockdfs[0].DATE)
-		for datetime in bar(UtilityFunctions.daterange(startDate, endDate + timedelta(days = 1))):
+		startDate = np.min(stockdf.DATE)
+		endDate = np.max(stockdf.DATE)
+		for datetime in bar(UtilityFunctions.datetimerange(startDate, endDate, parameters['timeDelta'])):
 			self.positionUpdateDone = False
 			data = UtilityFunctions.getData_Date(stockdfs, date)
 			if(len(data[0]) == 0):
