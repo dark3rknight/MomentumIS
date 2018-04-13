@@ -3,7 +3,7 @@ from utilities.UtilityFunctions import UtilityFunctions
 
 class Trade:
 	def __init__(self,price, direction = 1, quantity = 1, slippage = 0.1):
-		exec(UtilityFunctions.initializeFunctionArguments(PairsTrade.__init__))
+		exec(UtilityFunctions.initializeFunctionArguments(Trade.__init__))
 		self.MTMprices = {'def':price, 'daily': price, '30m':price, '5m':price}
 		self.MTMasked = []
 

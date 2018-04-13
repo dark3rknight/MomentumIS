@@ -9,30 +9,27 @@ import math
 
 class inMarket(MomentumState):
 	def __init__(self,name,edges,actions,finalStates, stateConstants, indicators):
-		MomentumState.__init__(self,name,edges,actions,finalStates,stateConstants['colName'], stateConstants['offset'], stateConstants['momentumWindow'], stateConstants['pastWindow'])
+		MomentumState.__init__(self,name,edges,actions,finalStates,stateConstants['PriceColumn'])
 		self.stateConstants = stateConstants
+		self.indicators = indicators
 
 	def exitMarket(self,timestamp, indicators, prices, toPass = None):
-		if((indicators['PSAR_Indicator'] == 1) and (indicators['SMBA_Indicator'] == 1) and (indicators['OLS_Indicator'] == 1)):
-			return True, {'Price': prices[prices.index == timestamp], 'Direction': 1}
-		elif((indicators['PSAR_Indicator'] == -1) and (indicators['SMBA_Indicator'] == -1) and (indicators['OLS_Indicator'] == -1))
-			return True, {'Price': prices[prices.index == timestamp], 'Direction': 1}
+		if((indicators.ix[0]['PSAR_Indicator'] in [toPass['Direction'],0]) and (indicators.ix[0]['SMBA_Indicator'] in [toPass['Direction'],0]) and (indicators.ix[0]['OLS_Indicator'] in [toPass['Direction'],0])):
+			return False, {'Price': prices[prices.index == timestamp], 'Direction': 1}
+		else:
+			return True, {'Price': prices['CLOSE'], 'Direction':0}
+
+	def stopLoss(self,timestamp, indicators, prices, toPass = None):
+		checkingPrice = float(prices.ix[0]['LOW'] if (toPass['Direction'] == 1) else prices.ix[0]['HIGH'])
+		if(float(toPass['Direction']*toPass['stopLossLimit']) > float(toPass['Direction']*checkingPrice)):
+			return True, {'Price': checkingPrice, 'Direction': 0}
 		else:
 			return False, {}
 
-	def stopLoss(self,timestamp, prices,toPass):
-		datapoint, zscore, correlation, momentum, priceMomentum, zScores_30m, stock1_std, stock2_std = indicators
-		if(toPass[0] == 1):
-			if(zscore > self.stateConstants['zscoreStopLoss'])and(self.stateConstants['stopLossFlag']):
-				return True,[-1, datapoint, zscore, correlation, momentum, priceMomentum, [stock1dfs[0].iloc[-1][self.stateConstants['colName']], stock2dfs[0].iloc[-1][self.stateConstants['colName']]]]
-			else:
-				return False,[1, datapoint, zscore, correlation, momentum, priceMomentum, [stock1dfs[0].iloc[-1][self.stateConstants['colName']], stock2dfs[0].iloc[-1][self.stateConstants['colName']]]]
+	def psarExit(self,timestamp, indicators, prices, toPass = None):
+		pos = self.indicators.index.get_loc(timestamp)
+		indicatorsPast = self.indicators.ix[pos - 1]
+		if(toPass['Direction']*indicatorsPast['PSAR_Val'] > toPass['Direction']*(prices.ix[0]['LOW'] if toPass['Direction'] == 1 else prices.ix[0]['HIGH'])):
+			return True, {'Price': indicatorsPast.ix[0]['PSAR_Val'], 'Direction': 0}
 		else:
-			if(zscore < -self.stateConstants['zscoreStopLoss'])and(self.stateConstants['stopLossFlag']):
-				return True,[-1, datapoint, zscore, correlation, momentum, priceMomentum, [stock1dfs[0].iloc[-1][self.stateConstants['colName']], stock2dfs[0].iloc[-1][self.stateConstants['colName']]]]
-			else:
-				return False,[-1, datapoint, zscore, correlation, momentum, priceMomentum, [stock1dfs[0].iloc[-1][self.stateConstants['colName']], stock2dfs[0].iloc[-1][self.stateConstants['colName']]]]
-
-	def preRequisites(self,prices, timestamp, toPass):
-		row = self.indicators[self.indicators.index == timestamp]
-		return row
+			return False,{}

@@ -2,7 +2,7 @@ state,edge,action,finalState
 start,-,-,outOfMarket
 outOfMarket,enterMarket,enterMarket,inMarket
 outOfMarket,default,continue,outOfMarket
-inMarket,stockHasMissingData,exitMarket,outOfMarket
 inMarket,stopLoss,exitMarket,outOfMarket
 inMarket,exitMarket,exitMarket,outOfMarket
+inMarket,psarExit,exitMarket,outOfMarket
 inMarket,default,continue,inMarket

@@ -12,8 +12,11 @@ class MomentumAutomata(Automata):
 	def __init__(self,startState, states,edges, actions, finalStates, parameters):
 		Automata.__init__(self,startState,states,edges.actions,finalStates)
 		self.parameters = parameters
-	def __init__(self,automataCSV):
-		Automata.__init__(self,automataCSV)
+
+	def __init__(self,parameters):
+		self.automataCSV = parameters['automataFile']
+		Automata.__init__(self,self.automataCSV)
+		self.parameters = parameters
 
 	def initializeStates(self,stateConstants, stockdf):
 		self.index = None
@@ -21,7 +24,9 @@ class MomentumAutomata(Automata):
 		self.inTrade = False
 		self.entryTime = None
 		self.direction = 0
+		self.stopLossLimit = None
 		self.cPCount = 0
+		self.high = None
 		indicators = self.generateIndicators(stateConstants, stockdf)
 		for state in self.states:
 			exec('from states.' + state + ' import ' + state)
@@ -43,21 +48,24 @@ class MomentumAutomata(Automata):
 		indicators.index = stockdf.index
 		return indicators
 
-	def generateDecision(self, data):
-		for i in range(len(self.stock1dfs)):
-			self.stock1dfs[i] = pd.concat([self.stock1dfs[i], data1[i]])
-
-		for i in range(len(self.stock2dfs)):
-			self.stock2dfs[i] = pd.concat([self.stock2dfs[i], data2[i]])
-
-		selectedEdge, action, self.currentState, data, row = eval('self.' + self.currentState + '.getNextResult(self.stock1dfs, self.stock2dfs,self.toPass)')
+	def generateDecision(self, timestamp, prices):
+		selectedEdge, action, self.currentState, data, row = eval('self.' + self.currentState + '.getNextResult(prices, timestamp,self.toPass)')
 		if(action == 'enterMarket'):
 			self.inTrade = True
-			self.direction = data[0]
-			self.entryTime = self.stock1dfs[0].iloc[-1].DATE
+			self.direction = data['Direction']
+			self.entryTime = timestamp
 		elif(action == 'exitMarket'):
 			self.inTrade = False
 			self.entryTime = None
 			self.direction = 0
-		self.toPass = [self.direction, self.entryTime]
+			self.stopLossLimit = None
+			self.high = None
+		if(self.inTrade):
+			if(self.high is not None):
+				if(self.direction*(prices.ix[0]['HIGH'] if (self.direction == 1) else prices.ix[0]['LOW']) > self.direction*self.high):
+					self.high = (prices.ix[0]['HIGH'] if (self.direction == 1) else prices.ix[0]['LOW'])
+			else:
+				self.high = prices.ix[0]['HIGH']
+			self.stopLossLimit = self.high*(1 - self.direction*(self.parameters['stopLoss']/100))
+		self.toPass = {'Direction': self.direction, 'Entry Time': self.entryTime, 'stopLossLimit': self.stopLossLimit}
 		return selectedEdge, action, self.currentState, data, row

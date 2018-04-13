@@ -17,13 +17,13 @@ class MomentumStrategy(Strategy):
 	def __init__(self, parameters = None):
 		Strategy.__init__(self, None, None,None, parameters = parameters)
 		exec(UtilityFunctions.initializeFunctionArguments(MomentumStrategy.__init__))
-		defaultparameters = {'zscoreBuy':2, 'zscoreSell':0, 'zscoreStopLoss':3.5, 'correlationSelectionThreshold':0.3, 'stopLossFlag':True, 'correlationCheckFlag':True, 'pastWindow':40, 'momentumCheck':False, 'momentumWindow':40, 'momentumThresholds':[20,80],'momentumCheckWaitWindow':10, 'almostRevertedFlag':False, 'zscoreAlmostMeanReverted':0.1, 'colName': 'EQUITY', 'numberOfDailyCandles': 1, 'automataFile': './pairsTrading/pairsTrading_automata.csv', 'transactionSummary': None, 'positionSummary': None}
+		defaultparameters = {'smba_period1':2, 'smba_period2':0, 'psar_AF':3.5, 'psar_MA':0.3, 'ols_period':True, 'correlationCheckFlag':True, 'pastWindow':40, 'momentumCheck':False, 'momentumWindow':40, 'momentumThresholds':[20,80],'momentumCheckWaitWindow':10, 'almostRevertedFlag':False, 'zscoreAlmostMeanReverted':0.1, 'colName': 'EQUITY', 'numberOfDailyCandles': 1, 'automataFile': './pairsTrading/pairsTrading_automata.csv', 'transactionSummary': None, 'positionSummary': None}
 		self.parameters = UtilityFunctions.fillDefaultData(parameters, defaultparameters)
 
 		#Constatnts
 		self.offset = np.max([self.parameters['smba_period1'], self.parameters['smba_period2'], self.parameters['ols_period']])
 		self.colName = self.parameters['colName']
-		self.automata = MomentumAutomata(self.parameters['automataFile'])
+		self.automata = MomentumAutomata(self.parameters)
 		self.numberOfDailyCandles = self.parameters['numberOfDailyCandles']
 		self.transactionSummary = self.parameters['transactionSummary']
 		self.positionSummary = self.parameters['positionSummary']
@@ -32,13 +32,6 @@ class MomentumStrategy(Strategy):
 		self.predictiveModelDataRow = None
 		self.MTMReturn_30m = 0
 		self.MTMWithTimeIndex = {}
-
-		#Data Collectors
-		self.correlations = [np.nan]*self.offset
-		self.zscores = [np.nan]*self.offset
-		self.priceRatios = [np.nan]*self.offset
-		self.priceRatioMomentums = [np.nan]*self.offset
-		self.momentumValues = [np.nan]*self.offset
 
 		self.profitDistributions = {}
 		for states, edges in self.automata.edges.items():
@@ -70,15 +63,20 @@ class MomentumStrategy(Strategy):
 		self.stockName = stockName
 		self.automata.initializeStates(self.parameters, stockdf)
 		bar = progressbar.ProgressBar()
-		startDate = np.min(stockdf.DATE)
-		endDate = np.max(stockdf.DATE)
-		for datetime in bar(UtilityFunctions.datetimerange(startDate, endDate, parameters['timeDelta'])):
-			self.positionUpdateDone = False
-			data = UtilityFunctions.getData_Date(stockdfs, date)
-			if(len(data[0]) == 0):
+		startDate = np.min(stockdf.index)
+		endDate = np.max(stockdf.index)
+		count = 0
+		for datetime in bar(UtilityFunctions.datetimerange(startDate, endDate, self.parameters['timeDelta'])):
+			while(count < self.offset):
+				count += 1
 				continue
-			selectedEdge,action,currentState,data, row = self.automata.generateDecision(data)
+			prices = stockdf[stockdf.index == datetime]
+			if(len(prices) == 0):
+				continue
+			selectedEdge,action,currentState,data, row = self.automata.generateDecision(datetime, prices)
 			self.predictiveModelDataRow = row
+			if('Price' not in data.keys()):
+				data['Price'] = prices.ix[0]['CLOSE']
 			if(action != 'continue'):
 				exec('self.' + action + '(datetime,data,selectedEdge)')
 			if(data != None):
@@ -90,20 +88,20 @@ class MomentumStrategy(Strategy):
 		self.enterMarket(datetime,data,selectedEdge)
 
 	def enterMarket(self,datetime,data,selectedEdge):
-		self.direction = data['direction']
+		self.direction = data['Direction']
 		self.stock = self.stockName
-		self.price = data['price']
-		self.ongoingTrade = Trade(self.sellPrice, direction = self.direction)
+		self.price = data['Price']
+		self.ongoingTrade = Trade(self.price, direction = self.direction)
 		self.entryTime = datetime
 
 	def exitMarket(self,datetime,data = None,selectedEdge = None):
-		profit, profitMTMs = self.ongoingTrade.exitTrade(data['price'])
-		self.detrendedContinuousReturnCurveWithTimeIndex_MTM[datetime] = profitMTM
+		profit, profitMTMs = self.ongoingTrade.exitTrade(data['Price'])
+		self.detrendedContinuousReturnCurveWithTimeIndex_MTM[datetime] = profitMTMs[0]
 		self.continuousImmediateReturn = profitMTMs[0]
 		self.continuousTotalReturns += profitMTMs[0]
 		self.exitTime = datetime
 		self.immediateReturn = profit
-
+		print(profit)
 		if(self.workbook):
 			row = [str(self.entryTime), str(self.exitTime), '%.3f' % self.price, '%.3f' % data['price'], '%.3f' % profit]
 			self.writeTransaction(profit, row, self.worksheet, self.formatRed)
@@ -116,18 +114,10 @@ class MomentumStrategy(Strategy):
 
 		self.ongoingTrade = None
 		self.price = None
-		self.returnListWithTime.append([profit,self.entryTime, self.exitTime, self.direction])
 		self.direction = 0
 
 	def updateData(self,datetime,data,selectedEdge):
 		self.totalReturns = self.totalReturns + self.immediateReturn
-
-		#Data Collectors
-		self.priceRatios.append(data[1])
-		self.zscores.append(data[2])
-		self.correlations.append(data[3])
-		self.momentumValues.append(data[4])
-		self.priceRatioMomentums.append(data[5])
 
 		try:
 			self.returnCurve.append(self.returnCurve[-1] + self.immediateReturn)
@@ -136,13 +126,13 @@ class MomentumStrategy(Strategy):
 
 		if(datetime not in self.detrendedContinuousReturnCurveWithTimeIndex_MTM.keys()):
 			if(self.direction == 1):
-				self.continuousImmediateReturn = self.ongoingTrade.checkMTM(data['price'])
+				self.continuousImmediateReturn = self.ongoingTrade.checkMTM(data['Price'], freq = '30m')
 			elif(self.direction == -1):
-				self.continuousImmediateReturn = self.ongoingTrade.checkMTM(data['price'])
+				self.continuousImmediateReturn = self.ongoingTrade.checkMTM(data['Price'], freq = '30m')
 			else:
 				self.continuousImmediateReturn = 0
 
-			self.detrendedContinuousReturnCurveWithTimeIndex_MTM[date] = self.continuousImmediateReturn
+			self.detrendedContinuousReturnCurveWithTimeIndex_MTM[datetime] = self.continuousImmediateReturn
 			self.continuousTotalReturns += self.continuousImmediateReturn
 
 		try:
@@ -150,9 +140,8 @@ class MomentumStrategy(Strategy):
 		except:
 			self.continuousReturnCurve.append(self.continuousImmediateReturn)
 
-		self.continuousReturnCurveWithTimeIndex[date] = self.continuousReturnCurve[-1]
-		self.detrendedContinuousReturnCurveWithTimeIndex[date] = self.immediateReturn
-
+		self.continuousReturnCurveWithTimeIndex[datetime] = self.continuousReturnCurve[-1]
+		self.detrendedContinuousReturnCurveWithTimeIndex[datetime] = self.immediateReturn
 		if(self.immediateReturn != 0):
 			self.profitDistributions[selectedEdge][0] += 1
 			self.profitDistributions[selectedEdge][1] += self.immediateReturn
