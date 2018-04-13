@@ -32,7 +32,7 @@ class MomentumStrategy(Strategy):
 		self.predictiveModelDataRow = None
 		self.MTMReturn_30m = 0
 		self.MTMWithTimeIndex = {}
-
+		self.ongoingTrade = None
 		self.profitDistributions = {}
 		for states, edges in self.automata.edges.items():
 			for edge in edges:
@@ -51,15 +51,16 @@ class MomentumStrategy(Strategy):
 
 
 		if(self.positionSummary):
-			headRow = ['Datetime','Price','Position','Return Curve']
-			self.positionWorkbook, self.positionWorksheet, self.positionFormatRed = self.createTransactionFile(self.positionSummary, headRow, sheetName)
+			headRow = ['Datetime','Price','EntryPrice','Position','Return Curve', 'Return On Trade']
+			self.positionWorkbook, self.positionWorksheet, self.positionFormatRed = self.createTransactionFile(self.positionSummary, headRow)
 			self.psRowNumber = 2
 		else:
 			self.positionWorkbook, self.positionWorksheet, self.positionFormatRed = [None,None,None]
 
 	def testStrategy(self,stockdf, stockName = None, startDate = None, endDate = None):
 		stockdf = stockdf[0]
-		self.stockdf = stockdf
+		self.stockdf = UtilityFunctions.selectData_OnDate(stockdf, startDate,endDate, 0)
+		stockdf = self.stockdf
 		self.stockName = stockName
 		self.automata.initializeStates(self.parameters, stockdf)
 		bar = progressbar.ProgressBar()
@@ -77,6 +78,11 @@ class MomentumStrategy(Strategy):
 			self.predictiveModelDataRow = row
 			if('Price' not in data.keys()):
 				data['Price'] = prices.ix[0]['CLOSE']
+			if('EntryPrice' not in data.keys()):
+				if(self.ongoingTrade is not None):
+					data['EntryPrice'] = self.ongoingTrade.price
+				else:
+					data['EntryPrice'] = '-'
 			if(action != 'continue'):
 				exec('self.' + action + '(datetime,data,selectedEdge)')
 			if(data != None):
@@ -90,7 +96,7 @@ class MomentumStrategy(Strategy):
 	def enterMarket(self,datetime,data,selectedEdge):
 		self.direction = data['Direction']
 		self.stock = self.stockName
-		self.price = data['Price']
+		self.price = data['EntryPrice']
 		self.ongoingTrade = Trade(self.price, direction = self.direction)
 		self.entryTime = datetime
 
@@ -98,10 +104,9 @@ class MomentumStrategy(Strategy):
 		profit, profitMTMs = self.ongoingTrade.exitTrade(data['Price'])
 		self.detrendedContinuousReturnCurveWithTimeIndex_MTM[datetime] = profitMTMs[0]
 		self.continuousImmediateReturn = profitMTMs[0]
-		self.continuousTotalReturns += profitMTMs[0]
+		self.continuousTotalReturns += self.continuousImmediateReturn
 		self.exitTime = datetime
 		self.immediateReturn = profit
-		print(profit)
 		if(self.workbook):
 			row = [str(self.entryTime), str(self.exitTime), '%.3f' % self.price, '%.3f' % data['price'], '%.3f' % profit]
 			self.writeTransaction(profit, row, self.worksheet, self.formatRed)
@@ -118,7 +123,7 @@ class MomentumStrategy(Strategy):
 
 	def updateData(self,datetime,data,selectedEdge):
 		self.totalReturns = self.totalReturns + self.immediateReturn
-
+		print(datetime, self.totalReturns, self.continuousTotalReturns, selectedEdge)
 		try:
 			self.returnCurve.append(self.returnCurve[-1] + self.immediateReturn)
 		except:
@@ -147,7 +152,7 @@ class MomentumStrategy(Strategy):
 			self.profitDistributions[selectedEdge][1] += self.immediateReturn
 
 		if(self.positionSummary):
-			row = [str(datetime), data['price'],self.direction, self.continuousReturnCurve[-1]]
+			row = [str(datetime), data['Price'],data['EntryPrice'],self.direction, self.continuousReturnCurve[-1], self.immediateReturn]
 			self.writePositionTransaction(row, self.positionWorksheet)
 
 		self.immediateReturn = 0

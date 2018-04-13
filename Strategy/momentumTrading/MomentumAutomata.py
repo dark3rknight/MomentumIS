@@ -28,6 +28,8 @@ class MomentumAutomata(Automata):
 		self.cPCount = 0
 		self.high = None
 		indicators = self.generateIndicators(stateConstants, stockdf)
+		if(self.parameters['indicatorSummary']):
+			indicators.to_csv(self.parameters['indicatorSummary'])
 		for state in self.states:
 			exec('from states.' + state + ' import ' + state)
 			exec('self.' + state + ' = ' + state + '(state,self.edges[state],self.actions[state],self.finalStates[state],stateConstants, indicators)')
@@ -50,6 +52,7 @@ class MomentumAutomata(Automata):
 
 	def generateDecision(self, timestamp, prices):
 		selectedEdge, action, self.currentState, data, row = eval('self.' + self.currentState + '.getNextResult(prices, timestamp,self.toPass)')
+		#print(timestamp, selectedEdge, data)
 		if(action == 'enterMarket'):
 			self.inTrade = True
 			self.direction = data['Direction']
@@ -57,9 +60,20 @@ class MomentumAutomata(Automata):
 		elif(action == 'exitMarket'):
 			self.inTrade = False
 			self.entryTime = None
-			self.direction = 0
+			if(selectedEdge != 'stopLoss'):
+				self.direction = 0
 			self.stopLossLimit = None
 			self.high = None
+		elif(action == 'exitAndEnterMarket'):
+			self.inTrade = False
+			self.entryTime = None
+			if(selectedEdge != 'stopLoss'):
+				self.direction = 0
+			self.stopLossLimit = None
+			self.high = None
+			self.inTrade = True
+			self.direction = data['Direction']
+			self.entryTime = timestamp			
 		if(self.inTrade):
 			if(self.high is not None):
 				if(self.direction*(prices.ix[0]['HIGH'] if (self.direction == 1) else prices.ix[0]['LOW']) > self.direction*self.high):

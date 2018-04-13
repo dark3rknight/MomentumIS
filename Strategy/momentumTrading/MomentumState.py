@@ -85,4 +85,6 @@ class MomentumState(State):
 							row = None
 					selectedEdge = edge
 					break
+				else:
+					data = {}
 		return selectedEdge, self.actions[selectedEdge], self.finalStates[selectedEdge],data, row

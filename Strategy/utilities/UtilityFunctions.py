@@ -60,6 +60,13 @@ class UtilityFunctions:
 			prices2 = prices2[(prices2.index >= startDate) & (prices2.index <= endDate)]
 		return prices1, prices2
 
+	def selectData_OnDate(stockdf, tradeStartDate = None, tradeEndDate = None, pastDataWindow = 0):
+		if(tradeStartDate is not None):
+			startDate = datetime.strptime(tradeStartDate, '%d/%m/%Y') - BDay(pastDataWindow)
+			endDate = datetime.strptime(tradeEndDate, '%d/%m/%Y')
+			stockdf = stockdf[(stockdf.index >= startDate) & (stockdf.index <= endDate)]
+		return stockdf
+
 	def selectData_notDaily(stock1, stock2, tradeStartDate = None, tradeEndDate = None, pastDataWindow = 0, numberOfCandlesPerDay = 1):
 		OverLappingIndices = stock1.index.intersection(stock2.index)
 		prices1 = stock1.ix[OverLappingIndices]

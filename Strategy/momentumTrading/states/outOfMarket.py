@@ -12,8 +12,8 @@ class outOfMarket(MomentumState):
 
 	def enterMarket(self,timestamp, indicators, prices, toPass = None):
 		if((indicators.ix[0]['PSAR_Indicator'] == 1) and (indicators.ix[0]['SMBA_Indicator'] == 1) and (indicators.ix[0]['OLS_Indicator'] == 1)):
-			return True, {'Price': prices['CLOSE'], 'Direction': 1}
+			return True, {'EntryPrice': prices.ix[0]['CLOSE'], 'Direction': 1}
 		elif((indicators.ix[0]['PSAR_Indicator'] == -1) and (indicators.ix[0]['SMBA_Indicator'] == -1) and (indicators.ix[0]['OLS_Indicator'] == -1)):
-			return True, {'Price': prices['CLOSE'], 'Direction': 1}
+			return True, {'EntryPrice': prices.ix[0]['CLOSE'], 'Direction': -1}
 		else:
 			return False, {}

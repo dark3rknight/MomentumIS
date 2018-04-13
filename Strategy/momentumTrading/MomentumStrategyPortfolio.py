@@ -72,14 +72,13 @@ class MomentumStrategyPortfolio:
 			strategy = eval(self.strategyName + '(parameters = self.strategyParameters)')
 			returns = eval('strategy.testStrategy(' + functionString + ')')
 			print(label,returns, strategy.MTMReturn_30m)
-			self.stockCount['Completed'] += 1
 			self.strategyObjects[label + extra] = strategy
 			self.returns[label + extra] = strategy.continuousTotalReturns
 			self.returnCurves.append(strategy.continuousReturnCurveWithTimeIndex)
 			self.detrendedReturnCurves.append(strategy.detrendedContinuousReturnCurveWithTimeIndex_MTM)
 
 		try:
-			self.combinedCurveWithTimeIndex_MTM, self.combinedCurve_MTM, self.timeKeySet_MTM = self.combineCurves_detrended(self.detrendedReturnCurves_MTM)
+			self.combinedCurveWithTimeIndex_MTM, self.combinedCurve_MTM, self.timeKeySet_MTM = self.combineCurves_detrended(self.detrendedReturnCurves)
 			self.totalReturn_MTM = self.combinedCurve_MTM[-1]
 			self.maxDrawdown_MTM = FinancialFunctions.maxDrawdown(self.combinedCurve_MTM)
 			self.sharpeRatio_MTM = FinancialFunctions.sharpeRatio(self.combinedCurve_MTM, numberOfDailyCandles = self.numberOfDailyCandles)

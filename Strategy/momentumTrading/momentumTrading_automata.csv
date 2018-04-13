@@ -2,7 +2,13 @@ state,edge,action,finalState
 start,-,-,outOfMarket
 outOfMarket,enterMarket,enterMarket,inMarket
 outOfMarket,default,continue,outOfMarket
-inMarket,stopLoss,exitMarket,outOfMarket
-inMarket,exitMarket,exitMarket,outOfMarket
+inMarket,stopLossAndEntry,exitAndEnterMarket,inMarket
+inMarket,psarExitAndEntry,exitAndEnterMarket,inMarket
+inMarket,exitMarketAndEntry,exitAndEnterMarket,inMarket
+inMarket,stopLoss,exitMarket,outOfMarket_lock
 inMarket,psarExit,exitMarket,outOfMarket
+inMarket,exitMarket,exitMarket,outOfMarket
 inMarket,default,continue,inMarket
+outOfMarket_lock,default,continue,outOfMarket_lock
+outOfMarket_lock,breakLockAndEnter,continue,outOfMarket
+outOfMarket_lock,breakLock,enterMarket,inMarket
